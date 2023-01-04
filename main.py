@@ -8,6 +8,7 @@ import youtube_dl
 import wavelink
 import DiscordUtils
 import random
+import datetime
 
 from discord import client
 from discord import webhook
@@ -172,14 +173,14 @@ async def remrole(ctx, member: discord.Member):
 @bot.command()
 @has_permissions(manage_roles = True)
 async def kayit(ctx, member: discord.Member, nick: str, age: str):
-    role = discord.utils.find(lambda r: r.name == 'Kayıtlı Üye', ctx.message.guild.roles)
+    role = discord.utils.find(lambda r: r.name == 'Kigelliler', ctx.message.guild.roles)
     
     if role in member.roles:
         await ctx.send("Üye zaten kayıtlı.")
         return
 
     for role in ctx.guild.roles:
-        if role.name == 'Kayıtlı Üye':
+        if role.name == 'Kigelliler':
             await member.add_roles(role)
 
     for role in ctx.guild.roles:
@@ -308,18 +309,18 @@ async def on_wavelink_node_ready(node: wavelink.Node):
 
 async def node_connect():
     await bot.wait_until_ready()
-    await wavelink.NodePool.create_node(bot=bot, host='ssl.freelavalink.ga', port=443, password='www.freelavalink.ga', https= True)
+    await wavelink.NodePool.create_node(bot=bot, host='ssl.freelavalink.ga', port=443, password='www.freelavalink.ga', https= True, spotify_client=spotify.SpotifyClient(client_id="dfd63517d84e4fb58d25f4fd9638a091", client_secret="c76059d814f344b992c4b29136541701"))
 
 @bot.event
-async def on_wacelink_track_end(player: wavelink.Player, track: wavelink.YouTubeTrack, reason):
+async def on_wavelink_track_end(player: wavelink.Player, track: wavelink.YouTubeTrack, reason):
     ctx = player.ctx
     vc: player = ctx.voice_client
 
     if vc.loop:
         return await vc.play(track)
-    
+
     if vc.queue.is_empty:
-        return await vc.disconnect()
+        return
 
     next_song = vc.queue.get()
     await vc.play(next_song)
@@ -331,12 +332,12 @@ async def play(ctx: commands.Context, *, search: wavelink.YouTubeTrack):
         vc: wavelink.Player = await ctx.author.voice.channel.connect(cls = wavelink.Player)
     elif not getattr(ctx.author.voice, "channel", None):
         return await ctx.send("İlk önce bir ses kanalına katıl.")
-    elif not ctx.author.voice == ctx.me.voice:
+    elif not ctx.author.voice.channel == ctx.me.voice.channel:
         return await ctx.send("Aynı ses kanalında olmalıyız")
     else:
         vc: wavelink.Player = ctx.voice_client
 
-    if vc.queue.is_empty and vc.is_playing:
+    if vc.queue.is_empty and not vc.is_playing():
         await vc.play(search)
         await ctx.send(f"{search.title} şu anda oynatılıyor.")
     else:
@@ -349,9 +350,11 @@ async def play(ctx: commands.Context, *, search: wavelink.YouTubeTrack):
 @bot.command()
 async def pause(ctx: commands.Context):
     if not ctx.voice_client:
-        return await ctx.senf("Herhangi bir mzik oynatılmıyor...")
-    elif not getattr(ctx.author.voice, "channel", None):
+        return await ctx.send("Herhangi bir ses kanalında değilim.")
+    elif not ctx.author.voice:
         return await ctx.send("İlk önce bir ses kanalına katıl.")
+    elif not ctx.author.voice.channel == ctx.me.voice.channel:
+        return await ctx.send("Aynı ses kanalında olmalıyız")
     else:
         vc: wavelink.Player = ctx.voice_client
 
@@ -361,9 +364,11 @@ async def pause(ctx: commands.Context):
 @bot.command()
 async def resume(ctx: commands.Context):
     if not ctx.voice_client:
-        return await ctx.senf("Herhangi bir mzik oynatılmıyor...")
-    elif not getattr(ctx.author.voice, "channel", None):
+        return await ctx.send("Herhangi bir ses kanalında değilim.")
+    elif not ctx.author.voice:
         return await ctx.send("İlk önce bir ses kanalına katıl.")
+    elif not ctx.author.voice == ctx.me.voice:
+        return await ctx.send("Aynı ses kanalında olmalıyız")
     else:
         vc: wavelink.Player = ctx.voice_client
 
@@ -371,23 +376,27 @@ async def resume(ctx: commands.Context):
     await ctx.send("Şarkı devam ettiriliyor.")
 
 @bot.command()
-async def stop(ctx: commands.Context):
+async def skip(ctx: commands.Context):
     if not ctx.voice_client:
-        return await ctx.senf("Herhangi bir mzik oynatılmıyor...")
-    elif not getattr(ctx.author.voice, "channel", None):
+        return await ctx.send("Herhangi bir ses kanalında değilim.")
+    elif not ctx.author.voice:
         return await ctx.send("İlk önce bir ses kanalına katıl.")
+    elif not ctx.author.voice.channel == ctx.me.voice.channel:
+        return await ctx.send("Aynı ses kanalında olmalıyız")
     else:
         vc: wavelink.Player = ctx.voice_client
 
     await vc.stop()
-    await ctx.send("Şarkı durduruldu.")
+    await ctx.send("Sonraki şarkıya geçildi.")
 
 @bot.command()
 async def disconnect(ctx: commands.Context):
     if not ctx.voice_client:
-        return await ctx.senf("Herhangi bir mzik oynatılmıyor...")
-    elif not getattr(ctx.author.voice, "channel", None):
+        return await ctx.send("Herhangi bir ses kanalında değilim.")
+    elif not ctx.author.voice:
         return await ctx.send("İlk önce bir ses kanalına katıl.")
+    elif not ctx.author.voice.channel == ctx.me.voice.channel:
+        return await ctx.send("Aynı ses kanalında olmalıyız")
     else:
         vc: wavelink.Player = ctx.voice_client
 
@@ -396,9 +405,11 @@ async def disconnect(ctx: commands.Context):
 @bot.command()
 async def loop(ctx: commands.Context):
     if not ctx.voice_client:
-        return await ctx.senf("Herhangi bir mzik oynatılmıyor...")
-    elif not getattr(ctx.author.voice, "channel", None):
+        return await ctx.send("Herhangi bir ses kanalında değilim.")
+    elif not ctx.author.voice:
         return await ctx.send("İlk önce bir ses kanalına katıl.")
+    elif not ctx.author.voice.channel == ctx.me.voice.channel:
+        return await ctx.send("Aynı ses kanalında olmalıyız")
     else:
         vc: wavelink.Player = ctx.voice_client
 
@@ -415,16 +426,18 @@ async def loop(ctx: commands.Context):
 @bot.command()
 async def queue(ctx: commands.Context):
     if not ctx.voice_client:
-        return await ctx.senf("Herhangi bir mzik oynatılmıyor...")
-    elif not getattr(ctx.author.voice, "channel", None):
+        return await ctx.send("Herhangi bir ses kanalında değilim.")
+    elif not ctx.author.voice:
         return await ctx.send("İlk önce bir ses kanalına katıl.")
+    elif not ctx.author.voice.channel == ctx.me.voice.channel:
+        return await ctx.send("Aynı ses kanalında olmalıyız")
     else:
         vc: wavelink.Player = ctx.voice_client
 
     if vc.queue.is_empty:
         return await ctx.send("Müzik sırası boş.")
 
-    em = nextcord.Enable(title = "Queue")
+    em = discord.Embed(title = "Queue")
     queue = vc.queue.copy()
     song_count = 0
     for song in queue:
@@ -434,30 +447,72 @@ async def queue(ctx: commands.Context):
     return await ctx.send(embed = em)
 
 @bot.command()
+async def volume(ctx: commands.context, volume: int):
+    if not ctx.voice_client:
+        return await ctx.send("Herhangi bir ses kanalında değilim.")
+    elif not ctx.author.voice:
+        return await ctx.send("İlk önce bir ses kanalına katıl.")
+    elif not ctx.author.voice.channel == ctx.me.voice.channel:
+        return await ctx.send("Aynı ses kanalında olmalıyız")
+    else:
+        vc: wavelink.Player = ctx.voice_client
+
+    if volume > 100:
+        return await ctx.send("ses seviyesi 100'den fazla olamaz.")
+    if volume < 0:
+        return await ctx.send("ses seviyesi 0'dan küçük olamaz.")
+        
+    await ctx.send(f"Ses seviyesi ayarlandı: {volume}")
+    return await vc.set_volume(volume)
+
+@bot.command()
+async def nowplaying(ctx: commands.Context):
+    if not ctx.voice_client:
+        return await ctx.send("Herhangi bir ses kanalında değilim.")
+    elif not ctx.author.voice:
+        return await ctx.send("İlk önce bir ses kanalına katıl.")
+    elif not ctx.author.voice.channel == ctx.me.voice.channel:
+        return await ctx.send("Aynı ses kanalında olmalıyız")
+    else:
+        vc: wavelink.Player = ctx.voice_client
+
+    if not vc.is_playing():
+        return await ctx.send("Hiçbir şey oynatılmıyor.")
+
+    em = discord.Embed(title=f"Şu an oynatılıyor {vc.track.title}", description=f"Şarkıcı: {vc.track.author}")
+    em.add_field(name="Duration", value=f"{str(datetime.timedelta(seconds=vc.track.length))}")
+    em.add_field(name="Extra Info", value=f"Song URL: {str(vc.track.uri)}")
+    return await ctx.send(embed=em)
+
+@bot.command()
 async def splay(ctx: commands.Context, *, search: str):
-    player = music.get_player(guild_id = ctx.guild.id)
-    if not player:
-        player = music.create_player(ctx, ffmpeg_error_betterfix = True)
+    if not ctx.voice_client:
+        vc: wavelink.Player = await ctx.author.voice.channel.connect(cls = wavelink.Player)
+    elif not getattr(ctx.author.voice, "channel", None):
+        return await ctx.send("İlk önce bir ses kanalına katıl.")
+    elif not ctx.author.voice.channel == ctx.me.voice.channel:
+        return await ctx.send("Aynı ses kanalında olmalıyız")
+    else:
+        vc: wavelink.Player = ctx.voice_client
 
-    ctx.command = bot.get_command("join")
-    await bot.invoke(ctx)
-
-    if ctx.voice_client.queue.is_empty and not ctx.voice_client.is_playing():
+    if vc.queue.is_empty and not vc.is_playing():
         try:
-            track = await spotify.SpotifyTrack.search(query = search, return_first = True)
-            await player.play(track)
-            await ctx.send(f"Oynatılıyor {track.title}")
+            track = await spotify.SpotifyTrack.search(query=search, return_first=True)
+            await vc.play(track)
+            await ctx.send(f"{track.title} şu anda oynatılıyor.")
         except Exception as e:
-            await ctx.send("Lütfen bir spotify url'si gir")
+            await ctx.send("Lütfen bir spotify url'si gir.")
             return print(e)
     else:
-        await ctx.voice_client.queue.put_wait(search)
-        await ctx.send(f"{search.title} listeye eklendi...")
+        track = await spotify.SpotifyTrack.search(query=search, return_first=True)
+        await vc.queue.put_wait(track)
+        await ctx.send(f"{track.title} sıraya eklendi.")
     
     vc.ctx = ctx
+    """   
     if vc.loop:
         return
-
+    """
     setattr(vc, "loop", False)
 
 @bot.event
@@ -474,16 +529,6 @@ async def on_message(message):
             await message.channel.send(f'Halettim {message.author.name} Bey')
         if message.content == 'sustur':
             await message.ctx.invoke(message.bot.get_command('kick'))
-        if message.content == "jarvis delice şeyler yap":
-            await message.channel.send("kan ağladı bu yürekler,")
-            await message.channel.send("uykusuz geçti geceler,")
-            await message.channel.send("başını öne eğme, aldırma fener,")
-            await message.channel.send("çok yakında güneşli günler.")
-            await message.channel.send("sana olan bu sevdamız,")
-            await message.channel.send("götürecek bizi zafere,")
-            await message.channel.send("haydi sen de gel, katıl bize,")
-            await message.channel.send("şampiyonluk şarkısı söyle")
-
 #    else:
 #        guild = bot.get_guild(372049876520796180)
 #        await guild.get_member(859181482161078314).edit(nick='sabri sikici')
